@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+work/
+legacy/
+.DS_Store
+
+.backups/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.env
+.env.*
+*.log
+*.pem
+*.key

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.13"
+          python-version: ${{ matrix.python }}
+      - name: Install locked dependencies
+        run: uv sync --locked
+      - name: Lint and check shell syntax
+        run: |
+          uv run --no-sync ruff check caf_app tests
+          sh -n caf install.sh
+      - name: Core tests
+        run: uv run --no-sync python -m unittest discover -s tests -v
+      - name: Terminal lifecycle and input
+        run: |
+          uv run --no-sync python tests/signals.py
+          uv run --no-sync python tests/input_burst.py
+      - name: Build and test installed package outside checkout
+        run: |
+          uv build
+          uv run --no-sync python tests/package_smoke.py dist/*.whl

@@ -1,0 +1,43 @@
+[project]
+name = "caf-terminal"
+version = "1.0.0"
+description = "A living pixel-art café for your terminal. Stay a little longer."
+readme = "README.md"
+license = "MIT AND OFL-1.1"
+license-files = ["LICENSE", "caf_app/assets/FONT-LICENSE.txt"]
+authors = [{ name = "Thomas Csere" }]
+requires-python = ">=3.11"
+dependencies = ["Pillow>=11,<13"]
+keywords = ["terminal", "pixel-art", "caffeinate", "lofi", "ghostty"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Repository = "https://github.com/tomc98/caf"
+Issues = "https://github.com/tomc98/caf/issues"
+
+[project.scripts]
+caf = "caf_app.app:main"
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["caf_app"]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "caf_app", "assets", "tests", ".github", ".gitignore",
+    ".gitattributes", "caf", "install.sh", "pyproject.toml", "uv.lock",
+    "README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md", "VALIDATION.md",
+]
+
+[dependency-groups]
+dev = ["ruff==0.16.7"]
+
+[tool.ruff]
+target-version = "py311"

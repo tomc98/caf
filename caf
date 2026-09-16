@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+CAF_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$CAF_ROOT"
+if [ ! -x "$CAF_ROOT/.venv/bin/python" ]; then
+  if ! command -v uv >/dev/null 2>&1; then
+    printf 'caf: install uv first: brew install uv\n' >&2
+    exit 1
+  fi
+  uv sync --locked --no-dev --quiet
+fi
+exec "$CAF_ROOT/.venv/bin/python" -m caf_app "$@"
