@@ -17,9 +17,9 @@ cd caf
 ./caf
 ```
 
-Run this inside Ghostty. On first launch, caf installs its locked Python dependencies into the checkout's `.venv`. Subsequent launches work offline with the radio off.
+Run this inside Ghostty, directly or [through tmux](#tmux). On first launch, caf installs its locked Python dependencies into the checkout's `.venv`. Subsequent launches work offline with the radio off.
 
-`./caf --check` reports local dependencies. Run directly in Ghostty; a multiplexer must forward Kitty graphics and mouse events correctly.
+`./caf --check` reports local dependencies.
 
 To run `caf` from anywhere:
 
@@ -31,6 +31,26 @@ caf
 The installer writes a launcher to `~/.local/bin/caf`, backing up any existing file under `.backups/`. Keep the checkout in place. If the command isn't found, add `export PATH="$HOME/.local/bin:$PATH"` to your shell profile and open a new terminal.
 
 To update a clone, run `git pull --ff-only` followed by `uv sync --locked --no-dev`. To uninstall, delete `~/.local/bin/caf`. Radio preferences are saved in `~/.config/caf/radio.json`, or `$XDG_CONFIG_HOME/caf/radio.json` when configured.
+
+## tmux
+
+caf works in tmux panes inside Ghostty, tested with Ghostty 1.3.1 and tmux 3.7c. Add these settings to `~/.tmux.conf`:
+
+```tmux
+set -g allow-passthrough on
+set -g mouse on
+```
+
+Apply them to a running server without restarting your sessions:
+
+```sh
+tmux set -g allow-passthrough on
+tmux set -g mouse on
+```
+
+Then launch tmux inside Ghostty and run `./caf` from the checkout, or `caf` if you installed the launcher. caf detects tmux automatically.
+
+`allow-passthrough` lets Ghostty display the artwork; `mouse` enables clicking the radio, lamp, cat, and other controls. Keyboard controls also work with mouse support disabled. You can split panes, zoom the café, and switch windows. Nested tmux sessions are unverified.
 
 ## Make yourself at home
 
@@ -80,7 +100,7 @@ The renderer uses Pillow for a 768×480 pixel-art canvas and Kitty graphics to d
 
 ## Troubleshooting
 
-- **Kitty graphics rejected:** run directly in Ghostty, outside tmux or screen, and check your terminal version. Kitty keyboard support alone does not imply graphics support.
+- **Kitty graphics rejected:** check that the outer terminal is Ghostty. In tmux, enable `allow-passthrough` as described above. Other multiplexers are unverified. Kitty keyboard support alone does not imply graphics support.
 - **Radio says NEEDS MPV:** run `brew install mpv`, then toggle the radio again. `./caf --check` reports whether mpv is on your path.
 - **A station stays on RECONNECTING:** try another preset and check your connection. Stations can change their endpoints or temporarily go offline.
 - **Artwork feels small or busy:** enlarge the terminal or use fullscreen; `./caf --fps 8` reduces redraw work.

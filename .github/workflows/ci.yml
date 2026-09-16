@@ -37,6 +37,10 @@ jobs:
         run: |
           uv run --no-sync python tests/signals.py
           uv run --no-sync python tests/input_burst.py
+      - name: tmux graphics and pane lifecycle
+        run: |
+          command -v tmux >/dev/null || brew install tmux
+          uv run --no-sync python tests/tmux_session.py
       - name: Build and test installed package outside checkout
         run: |
           uv build

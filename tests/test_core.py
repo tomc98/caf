@@ -168,7 +168,7 @@ class GraphicsTests(unittest.TestCase):
 
         from PIL import Image
 
-        terminal = Terminal()
+        terminal = Terminal(tmux=False)
         terminal.dimensions = lambda: (100, 32)
         terminal.cell = (10, 20)
         chunks = []

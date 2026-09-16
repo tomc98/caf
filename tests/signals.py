@@ -24,6 +24,11 @@ for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         stdout=slave,
         stderr=slave,
         start_new_session=True,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key not in ("TMUX", "TMUX_PANE")
+        },
     )
     started = time.monotonic()
     sent = False

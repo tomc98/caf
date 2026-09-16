@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Support tmux in Ghostty through graphics passthrough and pane-relative Unicode placeholders.
+- Give concurrent cafés independent image IDs and restore static tiles after window switching or reconnecting.
+- Retry graphics detection while tmux finishes its initial redraw, and explain how to enable passthrough when it is disabled.
+
 ## 1.0.0 — initial release
 
 - A pixel-art café with local-time lighting, a real wall clock, a pour-over brewer, and Miso the cat.

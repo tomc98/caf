@@ -3,14 +3,18 @@ import fcntl
 import math
 import os
 import re
+import secrets
 import select
 import shutil
 import struct
 import sys
 import termios
+import time
 import tty
 import zlib
 from dataclasses import dataclass
+
+from .diacritics import DIACRITICS
 
 ESC = "\x1b"
 MOUSE = re.compile(rb"\x1b\[<(\d+);(\d+);(\d+)([Mm])")
@@ -98,7 +102,7 @@ class Input:
 
 
 class Terminal:
-    def __init__(self):
+    def __init__(self, tmux=None):
         self.fd = sys.stdin.fileno()
         self.saved = None
         self.parser = Input()
@@ -108,6 +112,45 @@ class Terminal:
         self.bounds = (0, 0, 80, 24)
         self.size = (0, 0)
         self.supported = False
+        self.tmux = bool(os.environ.get("TMUX")) if tmux is None else tmux
+        self.image_id_base = secrets.randbits(31) + 1
+        self.image_ids = set()
+        self.last_refresh = 0
+        self.next_probe = 0
+
+    def probe(self):
+        self.write(self.passthrough(ESC + "[16t"))
+        self.write(
+            self.passthrough(ESC + "_Gi=31,a=q,t=d,f=24,s=1,v=1;AAAA" + ESC + "\\")
+        )
+        self.next_probe = time.monotonic() + 0.2
+
+    def passthrough(self, value):
+        data = value.encode() if isinstance(value, str) else value
+        if self.tmux:
+            return b"\x1bPtmux;" + data.replace(b"\x1b", b"\x1b\x1b") + b"\x1b\\"
+        return data
+
+    def placeholders(self, ident, left, top, width, height):
+        red, green, blue = (ident >> 16) & 255, (ident >> 8) & 255, ident & 255
+        high = DIACRITICS[ident >> 24]
+        pieces = [f"{ESC}[38;2;{red};{green};{blue}m{ESC}[59m"]
+        for row in range(height):
+            pieces.append(f"{ESC}[{top + row + 1};{left + 1}H")
+            pieces.append(
+                "".join(
+                    "\U0010eeee" + DIACRITICS[row] + DIACRITICS[col] + high
+                    for col in range(width)
+                )
+            )
+        pieces.append(f"{ESC}[39m")
+        return "".join(pieces).encode()
+
+    def delete_images(self):
+        return b"".join(
+            self.passthrough(f"{ESC}_Ga=d,d=I,i={ident},q=2;{ESC}\\")
+            for ident in sorted(self.image_ids)
+        )
 
     def write(self, value):
         sys.stdout.buffer.write(value.encode() if isinstance(value, str) else value)
@@ -139,13 +182,14 @@ class Terminal:
             + "[48;2;18;16;26m"
             + ESC
             + "[2J"
-            + ESC
-            + "[16t"
         )
-        self.write(ESC + "_Gi=31,a=q,t=d,f=24,s=1,v=1;AAAA" + ESC + "\\")
+        self.probe()
         return self
 
     def read(self, timeout=0):
+        # tmux can drop the first query while switching to the alternate screen.
+        if self.tmux and not self.supported and time.monotonic() >= self.next_probe:
+            self.probe()
         if select.select([self.fd], [], [], timeout)[0]:
             block = os.read(self.fd, 65536)
             if not block:
@@ -189,15 +233,22 @@ class Terminal:
         pixels = self.layout()
         x, y, cols, rows = self.bounds
         geometry = self.bounds, pixels
+        now = time.monotonic()
+        # Hidden tmux panes drop passthrough; refresh static tiles after returning.
+        refresh = self.tmux and now - self.last_refresh >= 1
+        if refresh:
+            self.last_refresh = now
         pieces = [(ESC + "[?2026h").encode()]
         if self.geometry != geometry:
-            for _, ident in self.tiles.values():
-                pieces.append(f"{ESC}_Ga=d,d=I,i={ident},q=2;{ESC}\\".encode())
+            pieces.append(self.delete_images())
             self.tiles.clear()
+            self.image_ids.clear()
             self.geometry = geometry
             pieces.append((ESC + "[2J").encode())
         image = image.resize(pixels, Image.Resampling.NEAREST)
         step_x, step_y = max(1, math.ceil(cols / 6)), max(1, math.ceil(rows / 4))
+        if self.tmux:
+            step_x, step_y = min(step_x, 64), min(step_y, 64)
         tile_index = 0
         for top in range(0, rows, step_y):
             for left in range(0, cols, step_x):
@@ -211,31 +262,41 @@ class Terminal:
                 tile = image.crop(crop)
                 raw = tile.tobytes()
                 previous = self.tiles.get(tile_index)
-                if previous and previous[0] == raw:
+                if previous and previous[0] == raw and not refresh:
                     tile_index += 1
                     continue
-                first_id = 1000 + tile_index * 2
+                first_id = self.image_id_base + tile_index * 2
                 ident = (
                     first_id + 1 if previous and previous[1] == first_id else first_id
                 )
                 payload = base64.b64encode(zlib.compress(raw, 1))
-                pieces.append(f"{ESC}[{y + top + 1};{x + left + 1}H".encode())
+                if not self.tmux:
+                    pieces.append(f"{ESC}[{y + top + 1};{x + left + 1}H".encode())
                 chunks = [payload[i : i + 4096] for i in range(0, len(payload), 4096)]
                 for index, block in enumerate(chunks):
                     prefix = (
                         f"a=T,f=24,o=z,s={tile.width},v={tile.height},i={ident},q=2,C=1,c={width},r={height},"
+                        + ("U=1," if self.tmux else "")
                         if index == 0
                         else ""
                     )
                     pieces.append(
-                        f"{ESC}_G{prefix}m={int(index < len(chunks) - 1)};".encode()
-                        + block
-                        + f"{ESC}\\".encode()
+                        self.passthrough(
+                            f"{ESC}_G{prefix}m={int(index < len(chunks) - 1)};".encode()
+                            + block
+                            + f"{ESC}\\".encode()
+                        )
                     )
-                if previous:
+                self.image_ids.add(ident)
+                if self.tmux:
+                    pieces.append(
+                        self.placeholders(ident, x + left, y + top, width, height)
+                    )
+                elif previous:
                     pieces.append(
                         f"{ESC}_Ga=d,d=I,i={previous[1]},q=2;{ESC}\\".encode()
                     )
+                    self.image_ids.discard(previous[1])
                 self.tiles[tile_index] = raw, ident
                 tile_index += 1
         pieces.append((ESC + "[?2026l").encode())
@@ -243,14 +304,10 @@ class Terminal:
 
     def __exit__(self, *args):
         try:
-            remove = "".join(
-                f"{ESC}_Ga=d,d=I,i={ident},q=2;{ESC}\\"
-                for _, ident in self.tiles.values()
-            )
+            self.write(self.delete_images())
             self.write(
                 ESC
                 + "[?2026l"
-                + remove
                 + ESC
                 + "[?1003l"
                 + ESC

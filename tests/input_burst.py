@@ -26,7 +26,14 @@ process = subprocess.Popen(
     stdout=slave,
     stderr=slave,
     start_new_session=True,
-    env={**os.environ, "XDG_CONFIG_HOME": str(Path("work/input-config").resolve())},
+    env={
+        **{
+            key: value
+            for key, value in os.environ.items()
+            if key not in ("TMUX", "TMUX_PANE")
+        },
+        "XDG_CONFIG_HOME": str(Path("work/input-config").resolve()),
+    },
 )
 started = time.monotonic()
 last_mouse = started

@@ -4,7 +4,7 @@
 
 - `uvx ruff check caf_app tests`: passed.
 - `sh -n caf install.sh`: passed.
-- `python -m unittest discover -s tests -v`: 12 tests passed. Covers real clock independence from scenery previews, lighting and weather transitions including the loop boundary, fragmented terminal input, mouse targeting, image tile reconstruction and unchanged-tile suppression, real macOS assertions, configuration persistence, animated rendering, and frame-rate limits during continuous input.
+- `python -m unittest discover -s tests -v`: 16 tests passed. Covers real clock independence from scenery previews, lighting and weather transitions including the loop boundary, fragmented terminal input, mouse targeting, image tile reconstruction and unchanged-tile suppression, tmux passthrough and placeholders, real macOS assertions, configuration persistence, animated rendering, and frame-rate limits during continuous input.
 - `tests/live_radio.py`: all four stations reached decoded live playback in one player session after sequential station changes. Most recent checks: Lofi 3.6 seconds, Fluid 1.5 seconds, Groove Salad 1.7 seconds, Drone Zone 1.5 seconds. Audio was sent to mpv's null output for this network test.
 - `tests/terminal_session.py`: the complete executable ran through a pseudo-terminal, negotiated Kitty graphics, emitted decodable RGB images, accepted mouse and keyboard controls, resized from 100×32 to 74×24, started actual audio output, changed station and volume, and restored terminal settings. Both child processes exited on close.
 - `tests/signals.py`: SIGINT, SIGTERM, and SIGHUP restored the terminal and released the caffeinate process.
@@ -21,13 +21,22 @@
 
 The maintainer launched the app in Ghostty 1.3.1 and reported that it works well on 2026-09-16. This is user-reported native acceptance. The automated checks above exercise the renderer and terminal protocol separately.
 
+## tmux compatibility
+
+- All 16 core/protocol tests pass on Python 3.11.14 and 3.14.2, including passthrough escaping, placeholder coordinates and full image IDs, independent instances, periodic refresh, and cleanup of both image buffers.
+- `tests/tmux_session.py` passes through real tmux 3.7c with a simulated outer Kitty terminal. It reconstructs the transmitted pixels exactly from tmux's text placements, checks two concurrent cafés, zoom/unzoom, hidden-window recovery with an empty image cache, mouse and keyboard routing, exit cleanup, and the error shown when passthrough is disabled.
+- The tmux startup test exposed a dropped capability query during the initial redraw. Detection now retries briefly while awaiting a response.
+- Direct-terminal signal and continuous-input checks pass after the renderer changes. The built wheel installs and renders outside the checkout with the protocol table included.
+- The maintainer also confirmed caf works inside tmux in Ghostty on 2026-09-16. This is user-reported native acceptance; the automated integration test uses a simulated outer terminal.
+- The macOS CI matrix includes the tmux integration test on Python 3.11 and 3.14.
+
 ## Open-source preparation
 
-- The 12 core tests pass on Python 3.11.14 and 3.14.2. Terminal signal cleanup and sustained input checks pass after the packaging changes.
+- The 16 core/protocol tests pass on Python 3.11.14 and 3.14.2. Terminal signal cleanup and sustained input checks pass after the packaging changes.
 - The built wheel includes all room art, sprites, the font, its OFL license, artwork provenance, and the project license. Isolated installs render daytime, dusk, and rainy midnight scenes outside the source checkout on both tested Python versions.
-- `ruff check`, shell syntax checks, lockfile validation, and `actionlint` pass. The macOS GitHub Actions matrix is configured for Python 3.11 and 3.14; hosted CI has not run before publication.
+- `ruff check`, shell syntax checks, lockfile validation, and `actionlint` pass. The macOS GitHub Actions matrix covers Python 3.11 and 3.14; results are available in [GitHub Actions](https://github.com/tomc98/caf/actions).
 - The publishable file set passed a credential-pattern scan and a personal-path check. PNG assets contain no embedded text or EXIF metadata. Local work, virtual environments, preferences, backups, and build outputs are excluded from Git and the source archive.
-- GitHub publication, the first remote CI run, and a release tag remain separate release steps.
+- The project is public on GitHub. No release tag or package-registry release has been published.
 
 ## Reproduce
 
@@ -38,6 +47,7 @@ Run from the project root with `./.venv/bin/python`:
 - `tests/terminal_session.py` (network; brief actual audio)
 - `tests/signals.py`
 - `tests/input_burst.py`
+- `tests/tmux_session.py` (requires tmux; isolated server, no audio)
 - `tests/reconnect_radio.py` (network; muted output)
 - `tests/parent_death.py` (network; muted output)
 

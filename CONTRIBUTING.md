@@ -20,13 +20,14 @@ Run `./caf` directly in Ghostty for visual work. `./caf --render work/preview.pn
 ```sh
 uv run --no-sync python tests/signals.py
 uv run --no-sync python tests/input_burst.py
+uv run --no-sync python tests/tmux_session.py  # requires tmux
 uv build
 uv run --no-sync python tests/package_smoke.py dist/*.whl
 ```
 
 The core and terminal tests briefly start their own caffeinate processes and check cleanup. The package check installs the built wheel in a temporary environment outside the checkout, then renders day, dusk, and night using the bundled assets. It may download dependencies.
 
-CI runs these checks on macOS with Python 3.11 and 3.14. It does not open a native terminal window or require live radio stations to be available.
+CI runs these checks on macOS with Python 3.11 and 3.14. The tmux integration test creates its own server and simulated outer Kitty terminal. It checks decoded pixels, multiple panes, zoom, window switching, mouse and keyboard routing, disabled passthrough, and cleanup. It does not access existing tmux sessions or open a native terminal window. CI does not require live radio stations to be available.
 
 Optional network checks require mpv:
 

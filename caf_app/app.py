@@ -202,8 +202,13 @@ def main(argv=None):
             if not world.running:
                 return 0
             if not terminal.supported:
+                if terminal.tmux:
+                    raise RuntimeError(
+                        "Kitty graphics did not pass through tmux. Use Ghostty as the outer terminal, "
+                        "then run: tmux set -g allow-passthrough on"
+                    )
                 raise RuntimeError(
-                    "This terminal did not accept Kitty graphics. Open caf directly in Ghostty (outside tmux)."
+                    "This terminal did not accept Kitty graphics. Open caf in Ghostty."
                 )
             with Awake() as awake:
                 last_diagnostic = 0
