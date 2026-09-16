@@ -1,6 +1,6 @@
 # caf
 
-**Stay a little longer.** Keep your Mac awake in a living pixel-art café inside Ghostty, with a real clock on the wall, a slow pour-over, Miso the cat, and lo-fi drifting from the radio.
+**Stay a little longer.** Keep your Mac awake in a living pixel-art café inside your terminal, with a real clock on the wall, a slow pour-over, Miso the cat, and lo-fi drifting from the radio.
 
 ![The café at dusk](assets/preview.png)
 
